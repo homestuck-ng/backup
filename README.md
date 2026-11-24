@@ -1,171 +1,258 @@
-# arch-dwm-desktop
+# backup — Arch dwm/st desktop
 
-Portable Arch + **dwm** / **st** desktop stack (Ilon’s working setup).
+Рабочий стек с исходной машины: **X11 + dwm + st + greetd/tuigreet**, трей, PipeWire, тёмная Materia, turbo off на батарее.
 
-Clone → install packages → build dwm/st → install configs/scripts → greetd + startx.
+Агенту: иди по шагам ниже сверху вниз на свежей Arch. Не убивай живой Throne/TUN без спроса. Не `push --force`.
 
-An agent can follow this README end-to-end on a fresh Arch laptop.
+```bash
+git clone git@github.com:homestuck-ng/backup.git
+cd backup
+./install.sh          # пакеты + сборка + конфиги + greetd + cpu-ac-switch
+# потом: обои, опционально Throne/Cursor, reboot
+```
 
-## What’s in the repo
+Или руками — тот же порядок, что в `install.sh`.
 
-| Path | Purpose |
-|------|---------|
-| `dwm/` | Patched dwm sources + `config.h` (systray, tabs, movestack, floatterm centering, Shift/Super+wheel focusstack, atomic float restack) |
-| `st/` | Patched st + `config.h` (scrollback, clipboard, boxdraw/ligatures patches under `st/patches/`) |
-| `bin/` | Session helpers: `floatterm`, `floatagent`, `clipd`, `clipmenu-dmenu`, `dwm-status`, `dunst-tg-raise`, `set-75hz`, … |
-| `config/xinitrc` | X session: keyboard, dunst, snixembed, nm/blueman, Throne tray, clipd, status, dwm loop |
-| `config/dunst/` | Notification daemon config |
-| `config/greetd-config.toml` | `tuigreet` → `startx` |
-| `config/grub-theme-simple.txt` | Minimal GRUB theme |
-| `scripts/cpu-ac-switch` + udev/systemd | Disable CPU turbo on battery, restore on AC |
-| `packages.txt` / `packages-aur.txt` | Pacman / AUR lists |
+---
 
-## Quick install (agent checklist)
+## Цель: что должно получиться
 
-### 1. Packages
+| Слой | Как на исходной системе |
+|------|-------------------------|
+| Логин | `greetd` → `tuigreet-clean` → `startx` |
+| WM | `~/.local/bin/dwm` в цикле из `~/.xinitrc` (soft restart: Super+Shift+q) |
+| Терминал | `~/.local/bin/st` (шрифт JetBrainsMono Nerd Font Mono) |
+| Трей | dwm systray + `snixembed` + `nm-applet` + `blueman-applet` (`dwm-tray`) |
+| Уведомления | `dunst` + `dunst-tg-raise` |
+| Клипборд | `clipd` (clipnotify + xclip) |
+| Тема | Materia-dark / Papirus-Dark |
+| Питание | `cpu-ac-switch`: turbo off на батарее, on на AC |
+| Лок | `slock` (Super+Shift+L), без xss-lock |
+
+---
+
+## 0. Предусловия
+
+- Arch Linux, интернет, пользователь с `sudo`
+- Для сборки suckless: `base-devel` (есть в `packages.txt`)
+- Желательно сразу NetworkManager:
+
+```bash
+sudo systemctl enable --now NetworkManager
+```
+
+---
+
+## 1. Пакеты из официальных репозиториев
+
+Список полный и актуальный: **`packages.txt`**.
 
 ```bash
 sudo pacman -Syu --needed - < packages.txt
-# AUR (yay or paru), if missing from repos:
-#   snixembed  materia-gtk-theme  papirus-icon-theme
-# Optional VPN GUI: throne / throne-bin (setcap on ThroneCore only; do NOT setcap the GUI)
 ```
 
-Also useful (often already pulled in):
+Критичное, без чего «не как тут»:
 
-- `xorg-xrandr`, `xorg-xset`, `xorg-xsetroot`, `xclip`, `maim`, `brightnessctl`
-- fonts: `ttf-jetbrains-mono-nerd` (or change `st`/`dwm` font in `config.h`)
-- audio: `pipewire` `pipewire-pulse` `wireplumber`
+| Пакет | Зачем |
+|-------|--------|
+| `xorg-server` `xorg-xinit` + xorg-утилиты | сессия X11 |
+| `libx11` `libxft` `libxinerama` `freetype2` `harfbuzz` | сборка dwm/st |
+| `dmenu` `dunst` `feh` `slock` | меню / тосты / обои / лок |
+| `snixembed` | SNI → XEmbed (Telegram/Throne в трее dwm) |
+| `clipnotify` `xclip` | журнал буфера (`clipd`) |
+| `pipewire` `pipewire-pulse` `wireplumber` | звук |
+| `network-manager-applet` `blueman` | иконки Wi‑Fi / BT |
+| `materia-gtk-theme` `papirus-icon-theme` | GTK как в xinitrc |
+| `ttf-jetbrains-mono-nerd` | шрифт в `dwm/config.h` и `st/config.h` |
+| `greetd` `greetd-tuigreet` | логин без SDDM/GDM |
+| `gnome-keyring` | секреты GTK-приложений |
+| `brightnessctl` | яркость + `set-75hz` не сбрасывает её |
+| `xdotool` | клик по тосту Telegram → raise окна |
 
-### 2. Build & install dwm + st
+AUR почти не нужен. См. `packages-aur.txt` только для **Throne** / **Cursor**.
+
+После шрифтов:
 
 ```bash
-# dwm → ~/.local/bin/dwm and dwm.bin (xinitrc/restart expects dwm on PATH)
+fc-cache -fv
+```
+
+---
+
+## 2. Сборка dwm и st → `~/.local/bin`
+
+Исходники уже с патчами и готовым `config.h` — просто `make`.
+
+```bash
 mkdir -p ~/.local/bin
 make -C dwm clean all
-cp -f dwm/dwm ~/.local/bin/dwm
-cp -f dwm/dwm ~/.local/bin/dwm.bin
+install -m 755 dwm/dwm ~/.local/bin/dwm
+install -m 755 dwm/dwm ~/.local/bin/dwm.bin   # на всякий случай (restart helpers)
 
-# st → ~/.local/bin/st  (floatterm hardcodes this path; adjust script if needed)
 make -C st clean all
-cp -f st/st ~/.local/bin/st
+install -m 755 st/st ~/.local/bin/st
 ```
 
-Ensure `~/.local/bin` is early on `PATH` (see `config/xinitrc`).
+`floatterm` / `floatagent` вызывают именно `~/.local/bin/st`.
 
-### 3. Helper scripts
+Патчи лежат в `dwm/patches/` и `st/patches/` (уже применены в дереве; заново патчить не надо).
+
+---
+
+## 3. Хелперы из `bin/`
 
 ```bash
-cp -a bin/* ~/.local/bin/
-chmod +x ~/.local/bin/*
-# floatagent launches:  ~/.local/bin/agent  (Cursor Agent CLI — install separately if desired)
+install -m 755 bin/* ~/.local/bin/
 ```
 
-### 4. Session configs
+| Скрипт | Роль |
+|--------|------|
+| `floatterm` | плавающий центрированный st |
+| `floatagent` | то же + Cursor `agent` CLI |
+| `dwm-tray` | после старта dwm: snixembed → nm/blueman |
+| `dwm-status` | строка статуса |
+| `clipd` / `clipmenu-dmenu` | история буфера |
+| `dunst-tg-raise` | клик по TG-уведомлению |
+| `set-75hz` | 1920×1080@75 + TearFree (AMD; на другом железе может no-op / правка) |
+| `dwm-restart` | soft restart helper |
+
+---
+
+## 4. Конфиги сессии
 
 ```bash
-cp config/xinitrc ~/.xinitrc
-chmod +x ~/.xinitrc
+install -m 755 config/xinitrc ~/.xinitrc
 mkdir -p ~/.config/dunst
-cp config/dunst/dunstrc ~/.config/dunst/dunstrc
-# optional:
-# cp config/Xresources ~/.Xresources
+install -m 644 config/dunst/dunstrc ~/.config/dunst/dunstrc
+install -m 644 config/gtkrc-2.0 ~/.gtkrc-2.0
+
+# обои (feh в xinitrc ждёт этот путь)
+# ln -sf /path/to/image.jpg ~/.wallpaper
 ```
 
-Wallpaper: `~/.wallpaper` (feh). Point a symlink at any image, or edit the `feh` line in `xinitrc`.
+`~/.xinitrc` поднимает: тему, dunst, clipd, status, цикл `dwm` + `dwm-tray`.
 
-### 5. Login (greetd + tuigreet)
+Throne в xinitrc **закомментирован** — включи строку `throne -tray &` после установки VPN.
+
+---
+
+## 5. Логин: greetd + tuigreet
 
 ```bash
-sudo cp config/greetd-config.toml /etc/greetd/config.toml
-sudo systemctl enable --now greetd
+sudo install -m 755 config/tuigreet-clean /usr/local/bin/tuigreet-clean
+sudo install -m 644 config/greetd-config.toml /etc/greetd/config.toml
+sudo systemctl enable greetd
 sudo systemctl set-default graphical.target
+# отключи конфликтующие дисплей-менеджеры, если были:
+# sudo systemctl disable sddm gdm lightdm 2>/dev/null || true
 ```
 
-`tuigreet` runs `startx` → `~/.xinitrc` → dwm.
+После reboot: tuigreet → `startx` → `~/.xinitrc` → dwm.
 
-### 6. Battery CPU turbo switch
+Быстрый тест без reboot: из TTY `startx` (если уже залогинен консольно).
+
+---
+
+## 6. Батарея: turbo off (как на исходнике)
 
 ```bash
-sudo cp scripts/cpu-ac-switch /usr/local/sbin/cpu-ac-switch
-sudo chmod 755 /usr/local/sbin/cpu-ac-switch
-sudo cp scripts/99-cpu-ac-switch.rules /etc/udev/rules.d/
-sudo cp config/systemd/cpu-ac-switch.service /etc/systemd/system/
+sudo install -m 755 scripts/cpu-ac-switch /usr/local/sbin/cpu-ac-switch
+sudo install -m 644 scripts/99-cpu-ac-switch.rules /etc/udev/rules.d/
+sudo install -m 644 config/systemd/cpu-ac-switch.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now cpu-ac-switch.service
 sudo udevadm control --reload
 ```
 
-No background daemon — udev/oneshot only.
+Один oneshot + udev, без демона. Проверка: `cat /sys/devices/system/cpu/intel_pstate/no_turbo` (или amd аналог — скрипт сам выбирает).
 
-### 7. GRUB simple theme (optional)
+---
+
+## 7. GRUB (опционально)
 
 ```bash
 sudo mkdir -p /boot/grub/themes/simple
 sudo cp config/grub-theme-simple.txt /boot/grub/themes/simple/theme.txt
-# In /etc/default/grub set:
-#   GRUB_THEME="/boot/grub/themes/simple/theme.txt"
-#   GRUB_TIMEOUT=3
-#   GRUB_COLOR_NORMAL="light-gray/black"
-#   GRUB_COLOR_HIGHLIGHT="white/black"
+```
+
+В `/etc/default/grub`:
+
+```
+GRUB_THEME="/boot/grub/themes/simple/theme.txt"
+GRUB_TIMEOUT=3
+GRUB_COLOR_NORMAL="light-gray/black"
+GRUB_COLOR_HIGHLIGHT="white/black"
+```
+
+```bash
 sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
-### 8. Lock screen
+---
 
-`slock` is in `packages.txt`. Bind in dwm: **Super+Shift+L**. No `xss-lock` required (manual lock only).
+## 8. Опционально: как «добить до полной копии»
 
-## Key bindings (high level)
+### Throne (VPN, TUN без root GUI)
 
-| Bind | Action |
-|------|--------|
-| Super+Enter | `st` |
-| Super+Shift+Enter / Super+\` | floating `floatterm` |
-| Super+Shift+= / Super++ | floating Cursor `agent` (`floatagent`) |
-| Super+j / k | focus stack |
-| **Shift+wheel** or **Super+wheel** | same as j/k (cyclic) |
-| Super+Shift+L | `slock` |
-| Super+Shift+q | soft-restart dwm (`while dwm; do :; done` in xinitrc) |
+1. AUR: `yay -S throne-bin` (или поставь `.AppImage`/пакет как на исходнике в `/opt/Throne`).
+2. Caps/setuid **только** на Core, **не** на GUI:
+   ```bash
+   # пример:
+   sudo setcap 'cap_net_admin,cap_net_bind_service=+ep' /opt/Throne/ThroneCore
+   ```
+3. Раскомментируй в `~/.xinitrc` блок `throne -tray`.
+4. `snixembed` уже стартует из `dwm-tray` — нужен для иконки.
+
+### Cursor / agent
+
+- Cursor IDE по желанию.
+- CLI: бинарь `agent` → `~/.local/bin/agent` (для Super+Shift+= / `floatagent`).
+
+### Telegram
+
+- Клиент любой; для raise из dunst удобен враппер `~/.local/bin/telegram` (иначе поправь `dunst-tg-raise`).
+
+### Обои / 75 Hz
+
+- `~/.wallpaper` — любой jpg/png.
+- `set-75hz` заточен под eDP 1920×1080 + AMD TearFree — на другом ноуте правь под свой `xrandr`.
+
+---
+
+## Хоткеи (кратко)
+
+| Клавиши | Действие |
+|---------|----------|
+| Super+Enter | st |
+| Super+Shift+Enter / Super+\` | floatterm |
+| Super+Shift+= | floatagent |
+| Super+j / k | фокус в стеке |
+| Shift+колёсико или Super+колёсико | то же, циклически |
 | Super+d / p | dmenu |
-| Super+q | kill client |
+| Super+q | закрыть окно |
+| Super+Shift+L | slock |
+| Super+Shift+q | soft-restart dwm |
 
-## Tray (Throne / Telegram)
+После правок dwm: пересобери → `install` в `~/.local/bin/dwm` (+ `dwm.bin`) → Super+Shift+q.
 
-dwm has an XEmbed systray. Qt/SNI apps need **`snixembed`** (started in `xinitrc` **before** Throne).
+---
 
-Throne notes (if used):
-
-- Run as user: `throne -tray` (wrapper should exec `/opt/Throne/Throne -appdata`)
-- **setuid or caps on `ThroneCore` only**, never on the GUI binary
-- Do not kill live TUN carelessly when copying this setup
-
-## Soft dwm restart
-
-`~/.xinitrc` ends with:
-
-```sh
-while dwm; do :; done
-```
-
-Install new builds to **`~/.local/bin/dwm.bin`** if your restart helper uses that name, and/or `~/.local/bin/dwm`. Then **Super+Shift+q**.
-
-## Agent prompt (copy-paste)
+## Промпт для агента (copy-paste)
 
 ```
-On this Arch machine, clone https://github.com/homestuck-ng/arch-dwm-desktop
-and follow README.md to reproduce the dwm/st desktop: install packages.txt (+ AUR),
-build dwm & st into ~/.local/bin, install bin/ scripts and config/xinitrc + dunst,
-enable greetd/tuigreet, install cpu-ac-switch udev/systemd, optional GRUB theme.
-Do not force-push; do not kill an existing Throne TUN without asking.
+Клонируй git@github.com:homestuck-ng/backup.git и воспроизведи desktop как в README.md:
+1) pacman -Syu --needed - < packages.txt
+2) собери dwm и st в ~/.local/bin (dwm, dwm.bin, st)
+3) поставь bin/* в ~/.local/bin
+4) ~/.xinitrc, dunst, ~/.gtkrc-2.0 из config/
+5) tuigreet-clean в /usr/local/bin + greetd config, enable greetd, graphical.target
+6) cpu-ac-switch (script + udev + systemd)
+7) fc-cache; обои ~/.wallpaper по желанию
+Не force-push. Throne/Cursor — только если попросят. Не рви живой VPN.
 ```
 
-## Layout / patches notes
+---
 
-- **dwm**: systray left of status; float window restack via `XRestackWindows`; `floatterm` WM_CLASS centered; Shift/Mod + mouse wheel `focusstack` with EnterNotify skip so focus does not stick.
-- **st**: see `st/patches/` for applied diffs; rebuild after editing `config.h`.
+## Не кладётся в git
 
-## Not included (install yourself)
-
-- Cursor IDE / `cursor-agent` CLI (`~/.local/bin/agent`)
-- Throne VPN app + polkit/setcap
-- Personal wallpapers, Firefox profile, SSH keys, secrets
+SSH-ключи, секреты, профиль Firefox, бинарники Cursor/Throne, личные обои, история clipd.

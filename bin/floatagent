@@ -2,6 +2,6 @@
 # Floating st with Cursor agent, always starting in $HOME
 export PATH="${HOME}/.local/bin:${PATH}"
 cd "${HOME}" || exit 1
-exec /home/ryuzaki/.local/bin/floatterm \
+exec "${HOME}/.local/bin/floatterm" \
   -t agent \
-  -e /bin/bash --login -c 'cd "$HOME" && exec /home/ryuzaki/.local/bin/agent "$@"' bash "$@"
+  -e /bin/bash --login -c 'cd "$HOME" && exec "$HOME/.local/bin/agent" "$@"' bash "$@"

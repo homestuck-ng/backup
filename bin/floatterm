@@ -25,4 +25,4 @@ Y=$((SY + BAR + (SH - BAR - H) / 2))
 [ "$X" -lt "$SX" ] && X=$SX
 [ "$Y" -lt $((SY + BAR)) ] && Y=$((SY + BAR))
 
-exec /home/ryuzaki/.local/bin/st -n floatterm -g "${COLS}x${ROWS}+${X}+${Y}" "$@"
+exec "${HOME}/.local/bin/st" -n floatterm -g "${COLS}x${ROWS}+${X}+${Y}" "$@"

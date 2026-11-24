@@ -4,7 +4,7 @@ exec 9>/tmp/dunst-tg-raise.lock
 flock -n 9 || exit 0
 
 raise() {
-	/home/ryuzaki/.local/bin/telegram >/dev/null 2>&1 &
+	"${HOME}/.local/bin/telegram" >/dev/null 2>&1 &
 	sleep 0.15
 
 	main=

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Wipe leftover boot/getty noise on the greeter VT, then start tuigreet.
+printf '\033[2J\033[H\033[3J' >/dev/tty1 2>/dev/null || true
+clear 2>/dev/null || true
+exec tuigreet "$@"

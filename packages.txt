@@ -1,6 +1,14 @@
-# Core packages for this desktop (Arch). Install with: pacman -S --needed - < packages.txt
+# Arch official repos. Install:
+#   sudo pacman -Syu --needed - < packages.txt
+#
+# Строить / сессия
 base-devel
 git
+pkgconf
+python
+util-linux
+
+# X11
 xorg-server
 xorg-xinit
 xorg-xset
@@ -8,31 +16,54 @@ xorg-xrandr
 xorg-xsetroot
 xorg-xprop
 xorg-xauth
+xorg-xrdb
 xclip
+xdotool
 maim
 libx11
 libxft
 libxinerama
 freetype2
 fontconfig
+harfbuzz
+
+# suckless / WM helpers
 dmenu
 dunst
 feh
+slock
+libnotify
+snixembed
+clipnotify
+
+# Аудио
 pipewire
 pipewire-pulse
 wireplumber
 pavucontrol
+
+# Сеть / BT / трей
+networkmanager
 network-manager-applet
 nm-connection-editor
 blueman
-firefox
+polkit
+
+# Тема / шрифты (dwm/st ждут JetBrainsMono Nerd Font Mono)
+materia-gtk-theme
+papirus-icon-theme
+ttf-jetbrains-mono
+ttf-jetbrains-mono-nerd
 noto-fonts
-brightnessctl
-slock
-xss-lock
+noto-fonts-emoji
+ttf-liberation
+adwaita-cursors
+
+# Сессия / логин
 greetd
 greetd-tuigreet
+gnome-keyring
 grub
-polkit
-libnotify
-snixembed
+brightnessctl
+firefox
+xss-lock

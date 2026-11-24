@@ -1,4 +1,10 @@
-# AUR (yay/paru):
-snixembed   # if not in repos on target; SNI→XEmbed for Throne/Telegram tray
-materia-gtk-theme papirus-icon-theme  # optional GTK theme used in xinitrc
-# Optional VPN GUI (caps/polkit separate): throne-bin / throne
+# AUR (yay / paru) — опционально. Всё критичное уже в packages.txt (extra).
+#
+# VPN GUI (не ставится install.sh автоматически):
+#   throne-bin
+# После установки Throne: setuid/caps ТОЛЬКО на ThroneCore, не на GUI.
+#   sudo setcap 'cap_net_admin,cap_net_bind_service=+ep' /opt/Throne/ThroneCore
+#   # или chown root + chmod u+s на ThroneCore — как на исходной машине
+#
+# Cursor IDE / agent CLI — отдельно (cursor-bin из AUR или сайт Cursor).
+# floatagent ждёт: ~/.local/bin/agent
