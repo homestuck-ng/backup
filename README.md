@@ -4,8 +4,10 @@
 
 Агенту: иди по шагам ниже сверху вниз на свежей Arch. Не убивай живой Throne/TUN без спроса. Не `push --force`.
 
+Репозиторий **public** — SSH-ключ не нужен:
+
 ```bash
-git clone git@github.com:homestuck-ng/backup.git
+git clone https://github.com/homestuck-ng/backup.git
 cd backup
 ./install.sh          # пакеты + сборка + конфиги + greetd + cpu-ac-switch
 # потом: обои, опционально Throne/Cursor, reboot
@@ -240,7 +242,7 @@ sudo grub-mkconfig -o /boot/grub/grub.cfg
 ## Промпт для агента (copy-paste)
 
 ```
-Клонируй git@github.com:homestuck-ng/backup.git и воспроизведи desktop как в README.md:
+Клонируй https://github.com/homestuck-ng/backup.git (public, без SSH) и воспроизведи desktop как в README.md:
 1) pacman -Syu --needed - < packages.txt
 2) собери dwm и st в ~/.local/bin (dwm, dwm.bin, st)
 3) поставь bin/* в ~/.local/bin
