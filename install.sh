@@ -31,10 +31,14 @@ install -m 755 "$ROOT/st/st" "$BIN/st"
 echo "==> 4/7 helpers → $BIN"
 install -m 755 "$ROOT"/bin/* "$BIN/"
 
-echo "==> 5/7 session configs"
+echo "==> 5/7 session configs + wallpaper"
 install -m 755 "$ROOT/config/xinitrc" "${HOME}/.xinitrc"
 install -m 644 "$ROOT/config/dunst/dunstrc" "${HOME}/.config/dunst/dunstrc"
 install -m 644 "$ROOT/config/gtkrc-2.0" "${HOME}/.gtkrc-2.0"
+mkdir -p "${HOME}/Pictures"
+install -m 644 "$ROOT/wallpaper/cat_black_white_artwork.png" \
+  "${HOME}/Pictures/cat_black_white_artwork.png"
+ln -sfn "${HOME}/Pictures/cat_black_white_artwork.png" "${HOME}/.wallpaper"
 fc-cache -fv >/dev/null 2>&1 || true
 
 echo "==> 6/7 greetd + tuigreet-clean"
@@ -53,8 +57,5 @@ sudo systemctl enable --now cpu-ac-switch.service
 sudo udevadm control --reload
 
 echo
-echo "Готово. Дальше:"
-echo "  • ln -sf /path/to/wall.jpg ~/.wallpaper"
-echo "  • опционально Throne/Cursor — см. README §8"
-echo "  • reboot (или startx из TTY)"
-echo "PATH: $BIN уже в начале ~/.xinitrc"
+echo "Готово. Обои → ~/.wallpaper. Опционально Throne/Cursor — README §8."
+echo "reboot или startx из TTY. PATH: $BIN уже в ~/.xinitrc"

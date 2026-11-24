@@ -9,8 +9,8 @@
 ```bash
 git clone https://github.com/homestuck-ng/backup.git
 cd backup
-./install.sh          # пакеты + сборка + конфиги + greetd + cpu-ac-switch
-# потом: обои, опционально Throne/Cursor, reboot
+./install.sh          # пакеты + сборка + конфиги + обои + greetd + cpu-ac-switch
+# потом опционально Throne/Cursor, reboot
 ```
 
 Или руками — тот же порядок, что в `install.sh`.
@@ -133,8 +133,10 @@ mkdir -p ~/.config/dunst
 install -m 644 config/dunst/dunstrc ~/.config/dunst/dunstrc
 install -m 644 config/gtkrc-2.0 ~/.gtkrc-2.0
 
-# обои (feh в xinitrc ждёт этот путь)
-# ln -sf /path/to/image.jpg ~/.wallpaper
+# обои (лежат в wallpaper/; feh читает ~/.wallpaper)
+mkdir -p ~/Pictures
+install -m 644 wallpaper/cat_black_white_artwork.png ~/Pictures/
+ln -sfn ~/Pictures/cat_black_white_artwork.png ~/.wallpaper
 ```
 
 `~/.xinitrc` поднимает: тему, dunst, clipd, status, цикл `dwm` + `dwm-tray`.
@@ -221,7 +223,8 @@ sudo grub-mkconfig -o /boot/grub/grub.cfg
 
 ### Обои / 75 Hz
 
-- `~/.wallpaper` — любой jpg/png.
+- Текущие обои в репо: `wallpaper/cat_black_white_artwork.png` → `~/.wallpaper` (ставит `install.sh`).
+- Свои: `ln -sfn /path/to.jpg ~/.wallpaper`
 - `set-75hz` заточен под eDP 1920×1080 + AMD TearFree — на другом ноуте правь под свой `xrandr`.
 
 ---
@@ -254,7 +257,7 @@ sudo grub-mkconfig -o /boot/grub/grub.cfg
 4) ~/.xinitrc, dunst, ~/.gtkrc-2.0 из config/
 5) tuigreet-clean в /usr/local/bin + greetd config, enable greetd, graphical.target
 6) cpu-ac-switch (script + udev + systemd)
-7) fc-cache; обои ~/.wallpaper по желанию
+7) fc-cache; обои из wallpaper/ → ~/.wallpaper
 Не force-push. Throne/Cursor — только если попросят. Не рви живой VPN.
 ```
 
