@@ -1,0 +1,4 @@
+# AUR (yay/paru):
+snixembed   # if not in repos on target; SNI→XEmbed for Throne/Telegram tray
+materia-gtk-theme papirus-icon-theme  # optional GTK theme used in xinitrc
+# Optional VPN GUI (caps/polkit separate): throne-bin / throne

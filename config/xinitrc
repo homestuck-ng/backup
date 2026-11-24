@@ -1,0 +1,69 @@
+#!/bin/sh
+# dwm session
+export PATH="$HOME/.local/bin:$PATH"
+export TERMINAL=st
+export BROWSER=firefox
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=dwm:Unity
+
+# --- synced dark theme (GTK + Qt) ---
+export GTK_THEME=Materia-dark:dark
+export GTK2_RC_FILES="$HOME/.gtkrc-2.0"
+export QT_QPA_PLATFORM=xcb
+export QT_QPA_PLATFORMTHEME=gtk3
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+# libadwaita / portals
+export ADW_DEBUG_COLOR_SCHEME=prefer-dark
+export LD_LIBRARY_PATH="$HOME/.local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+gsettings set org.gnome.desktop.interface color-scheme prefer-dark >/dev/null 2>&1 &
+gsettings set org.gnome.desktop.interface gtk-theme Materia-dark >/dev/null 2>&1 &
+gsettings set org.gnome.desktop.interface icon-theme Papirus-Dark >/dev/null 2>&1 &
+
+# session bus env for portals / keyring / tray apps
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+  dbus-update-activation-environment --systemd DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP 2>/dev/null || true
+fi
+# unlockable secrets for GTK apps (Cursor uses --password-store=basic instead)
+if command -v gnome-keyring-daemon >/dev/null 2>&1; then
+  eval "$(gnome-keyring-daemon --start --components=secrets 2>/dev/null)"
+  export GNOME_KEYRING_CONTROL
+fi
+
+xset s off -dpms 2>/dev/null || true
+[ -f "$HOME/.Xresources" ] && xrdb -merge "$HOME/.Xresources"
+
+feh --bg-fill "$HOME/.wallpaper" &
+set-75hz || true
+
+# suckless-ish notifications (Telegram etc. via freedesktop)
+pkill -x dunst 2>/dev/null || true
+pkill -f dunst-tg-raise 2>/dev/null || true
+dunst &
+dunst-tg-raise &
+
+# clipboard journal (clipnotify + xclip) — independent of tray
+pkill -x greenclip 2>/dev/null || true
+pkill -f '/\.local/bin/clipd$' 2>/dev/null || true
+pkill -x clipd 2>/dev/null || true
+pkill -x dwm-status 2>/dev/null || true
+rm -rf /tmp/clipd /tmp/greenclip-img /tmp/greenclip.history /tmp/clipd.lock
+mkdir -p /tmp/clipd
+clipd &
+dwm-status &
+
+# Throne autostart disabled
+# if ! pgrep -x Throne >/dev/null 2>&1; then
+#   throne -tray &
+# fi
+
+# Soft-restart loop (Super+Shift+q → quit → next iteration).
+# Tray applets re-bind AFTER dwm owns systray; dwm-tray never touches Throne.
+while true; do
+  dwm &
+  dwmpid=$!
+  dwm-tray
+  wait "$dwmpid"
+  code=$?
+  [ "$code" -eq 0 ] || exit "$code"
+done
+

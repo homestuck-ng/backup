@@ -1,0 +1,7 @@
+*.o
+dwm/dwm
+st/st
+*.orig
+*.rej
+*~
+.DS_Store

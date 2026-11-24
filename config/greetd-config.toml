@@ -1,0 +1,6 @@
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet-clean --time --remember --remember-user-session --asterisks --cmd startx --greeting 'arch' --theme 'border=gray;text=white;prompt=white;time=gray;action=darkgray;button=white;container=black;input=white'"
+user = "greeter"

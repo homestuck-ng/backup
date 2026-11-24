@@ -1,0 +1,86 @@
+#!/bin/sh
+# dwm status — SIGUSR1 = quick refresh (volume keys), debounced
+
+PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/dwm-status.pid"
+echo $$ >"$PIDFILE"
+trap 'rm -f "$PIDFILE"; exit 0' TERM INT EXIT
+
+layout() {
+	# Single PUA glyphs from DwmFlags (dwm/Xft has no HarfBuzz flag ligatures)
+	if command -v xkb-switch >/dev/null 2>&1; then
+		case "$(xkb-switch 2>/dev/null)" in
+			us*) printf '\ue100' ;;
+			ru*) printf '\ue101' ;;
+			*) xkb-switch 2>/dev/null | cut -c1-2 | tr '[:upper:]' '[:lower:]' ;;
+		esac
+	else
+		printf 'kb'
+	fi
+}
+
+# fixed width so the bar / tray don't jump while holding volume keys
+volume() {
+	command -v wpctl >/dev/null 2>&1 || { printf 'vol:----'; return; }
+	out=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null) || { printf 'vol:----'; return; }
+	if echo "$out" | grep -q MUTED; then
+		printf 'vol:mute'
+	else
+		v=$(echo "$out" | awk '{printf "%d", $2 * 100}')
+		printf 'vol:%3d%%' "$v"
+	fi
+}
+
+network() {
+	command -v nmcli >/dev/null 2>&1 || return
+	wifi=$(nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null | awk -F: '$2=="wifi" && $3=="connected" {print $4; exit}')
+	[ -n "$wifi" ] && printf 'wifi:%.10s' "$wifi"
+}
+
+battery() {
+	for b in /sys/class/power_supply/BAT*; do
+		[ -d "$b" ] || continue
+		cap=$(cat "$b/capacity" 2>/dev/null)
+		stat=$(cat "$b/status" 2>/dev/null)
+		case "$stat" in
+			Charging) s="+" ;;
+			Discharging) s="-" ;;
+			Full|Not\ charging|"") s="" ;;
+			*) s="~" ;;
+		esac
+		printf 'bat:%d%%%s' "$cap" "$s"
+		return
+	done
+}
+
+draw() {
+	parts=
+	for fn in volume network battery; do
+		v=$($fn)
+		[ -n "$v" ] || continue
+		if [ -z "$parts" ]; then
+			parts=$v
+		else
+			parts="$parts | $v"
+		fi
+	done
+	flag=$(layout)
+	# leading " | " separates status from systray (systrayonleft)
+	# flag last — right of date
+	xsetroot -name " | $parts | $(date '+%a %d %b %H:%M') | $flag"
+}
+
+need_draw=1
+trap 'need_draw=1' USR1
+
+draw
+need_draw=0
+# 10 Hz loop: coalesce volume spam, still refresh clock ~1/s
+ticks=0
+while true; do
+	sleep 0.1
+	ticks=$((ticks + 1))
+	if [ "$need_draw" -eq 1 ] || [ $((ticks % 10)) -eq 0 ]; then
+		need_draw=0
+		draw
+	fi
+done

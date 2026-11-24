@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply Ryzen AC/battery performance profile
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/cpu-ac-switch
+
+[Install]
+WantedBy=multi-user.target

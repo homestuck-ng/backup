@@ -1,0 +1,28 @@
+#!/bin/sh
+# Centered floating st (JetBrainsMono Nerd pixelsize=14 ~ 8x20)
+COLS=100
+ROWS=30
+CW=8
+CH=20
+STBW=2
+W=$((COLS * CW + STBW))
+H=$((ROWS * CH + STBW))
+
+geom=$(xrandr --current | awk '/ primary /{print $4; exit}')
+[ -n "$geom" ] || geom=$(xrandr --current | awk '/ connected /{print $3; exit}')
+[ -n "$geom" ] || geom="1920x1080+0+0"
+
+SW=${geom%%x*}
+rest=${geom#*x}
+SH=${rest%%+*}
+rest=${rest#*+}
+SX=${rest%%+*}
+SY=${rest#*+}
+
+BAR=${BAR:-22}
+X=$((SX + (SW - W) / 2))
+Y=$((SY + BAR + (SH - BAR - H) / 2))
+[ "$X" -lt "$SX" ] && X=$SX
+[ "$Y" -lt $((SY + BAR)) ] && Y=$((SY + BAR))
+
+exec /home/ryuzaki/.local/bin/st -n floatterm -g "${COLS}x${ROWS}+${X}+${Y}" "$@"

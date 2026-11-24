@@ -1,0 +1,50 @@
+#!/bin/sh
+# Re-bind tray icons into dwm systray after soft dwm restart.
+# Never touches Throne / ThroneCore / Telegram / X / dwm.
+
+export DISPLAY="${DISPLAY:-:0}"
+export PATH="$HOME/.local/bin:$PATH"
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-dwm:Unity}"
+
+wait_systray() {
+	python3 - <<'PY'
+import ctypes, sys, time
+X11 = ctypes.CDLL("libX11.so.6")
+X11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+X11.XOpenDisplay.restype = ctypes.c_void_p
+X11.XDefaultScreen.argtypes = [ctypes.c_void_p]
+X11.XDefaultScreen.restype = ctypes.c_int
+X11.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+X11.XInternAtom.restype = ctypes.c_ulong
+X11.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+X11.XGetSelectionOwner.restype = ctypes.c_ulong
+X11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+dpy = X11.XOpenDisplay(None)
+if not dpy:
+    sys.exit(1)
+scr = X11.XDefaultScreen(dpy)
+atom = X11.XInternAtom(dpy, f"_NET_SYSTEM_TRAY_S{scr}".encode(), 0)
+ok = 0
+for _ in range(50):
+    if X11.XGetSelectionOwner(dpy, atom) != 0:
+        ok = 1
+        break
+    time.sleep(0.1)
+X11.XCloseDisplay(dpy)
+sys.exit(0 if ok else 1)
+PY
+}
+
+wait_systray || sleep 0.5
+
+pkill -x snixembed 2>/dev/null || true
+sleep 0.15
+"$HOME/.local/bin/snixembed" --fork
+sleep 0.2
+
+pkill -x nm-applet 2>/dev/null || true
+pkill -x blueman-applet 2>/dev/null || true
+pkill -x blueman-tray 2>/dev/null || true
+sleep 0.1
+nm-applet &
+blueman-applet &

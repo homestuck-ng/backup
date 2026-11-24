@@ -1,0 +1,79 @@
+#!/bin/sh
+# Lightweight clipboard journal: clipnotify + xclip (text + png)
+
+DIR="${CLIPD_DIR:-/tmp/clipd}"
+MAX="${CLIPD_MAX:-50}"
+LOCK=/tmp/clipd.lock
+
+exec 9>"$LOCK"
+flock -n 9 || exit 0
+
+mkdir -p "$DIR"
+LAST=
+
+trim() {
+	[ -f "$DIR/index" ] || return 0
+	tmp=$(mktemp "$DIR/.idx.XXXXXX")
+	head -n "$MAX" "$DIR/index" >"$tmp"
+	mv -f "$tmp" "$DIR/index"
+	# delete orphans only (no literal-glob trap when empty)
+	find "$DIR" -maxdepth 1 -type f \( -name 't_*' -o -name 'i_*.png' \) 2>/dev/null |
+	while IFS= read -r f; do
+		base=${f##*/}
+		grep -qxF "$base" "$DIR/index" 2>/dev/null || rm -f "$f"
+	done
+}
+
+push() {
+	base=$1
+	# already in journal → keep position (restoring from menu must not bump)
+	if [ -f "$DIR/index" ] && grep -qxF "$base" "$DIR/index"; then
+		return 0
+	fi
+	if [ -f "$DIR/index" ]; then
+		{ echo "$base"; cat "$DIR/index"; } >"$DIR/index.tmp"
+		mv -f "$DIR/index.tmp" "$DIR/index"
+	else
+		echo "$base" >"$DIR/index"
+	fi
+	trim
+}
+
+capture() {
+	targets=$(xclip -selection clipboard -t TARGETS -o 2>/dev/null) || return 0
+	case $targets in
+	*image/png*)
+		tmp=$(mktemp "$DIR/.img.XXXXXX")
+		if ! xclip -selection clipboard -t image/png -o >"$tmp" 2>/dev/null; then
+			rm -f "$tmp"
+			return 0
+		fi
+		[ -s "$tmp" ] || { rm -f "$tmp"; return 0; }
+		h=$(sha256sum "$tmp" | awk '{print $1}')
+		[ "$h" = "$LAST" ] && { rm -f "$tmp"; return 0; }
+		LAST=$h
+		base="i_${h}.png"
+		mv -f "$tmp" "$DIR/$base"
+		push "$base"
+		return 0
+		;;
+	esac
+
+	txt=$(xclip -selection clipboard -o 2>/dev/null) || return 0
+	[ -n "$txt" ] || return 0
+	bytes=$(printf '%s' "$txt" | wc -c)
+	[ "$bytes" -gt 524288 ] && return 0
+
+	h=$(printf '%s' "$txt" | sha256sum | awk '{print $1}')
+	[ "$h" = "$LAST" ] && return 0
+	LAST=$h
+	base="t_$h"
+	[ -f "$DIR/$base" ] || printf '%s' "$txt" >"$DIR/$base"
+	push "$base"
+}
+
+export DISPLAY="${DISPLAY:-:0}"
+capture
+while clipnotify; do
+	capture
+done

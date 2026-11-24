@@ -1,0 +1,80 @@
+#!/bin/bash
+# AC: aggressive boost curve + firmware power table.
+# Battery: boost off, OEM power-saving curve, 15 W sustained.
+set -u
+
+CONF=/etc/cpu-ac-switch.conf
+RYZENADJ=/usr/local/bin/ryzenadj
+
+AC_EPP=balance_performance
+AC_STAPM=25000
+AC_SLOW=37500
+AC_FAST=48000
+AC_TCTL=85
+BAT_EPP=balance_power
+BAT_STAPM=15000
+BAT_SLOW=18000
+BAT_FAST=25000
+BAT_TCTL=85
+if [ -r "$CONF" ]; then
+  # shellcheck disable=SC1090
+  . "$CONF"
+fi
+
+online=0
+for f in /sys/class/power_supply/*/online; do
+  [ -f "$f" ] || continue
+  typef="$(dirname "$f")/type"
+  [ -f "$typef" ] && [ "$(cat "$typef")" = "Mains" ] || continue
+  online=$(cat "$f")
+  break
+done
+
+apply_epp() {
+  epp=$1
+  for pol in /sys/devices/system/cpu/cpufreq/policy[0-9]*; do
+    [ -d "$pol" ] || continue
+    echo powersave >"$pol/scaling_governor" 2>/dev/null || true
+    echo "$epp" >"$pol/energy_performance_preference" 2>/dev/null || true
+    if [ -f "$pol/cpuinfo_min_freq" ]; then
+      echo "$(cat "$pol/cpuinfo_min_freq")" >"$pol/scaling_min_freq" 2>/dev/null || true
+    fi
+  done
+}
+
+boost=/sys/devices/system/cpu/cpufreq/boost
+if [ "$online" = 1 ]; then
+  mode=ac
+  echo 1 >"$boost" 2>/dev/null || true
+  apply_epp "$AC_EPP"
+  args=(--max-performance
+        --stapm-limit="$AC_STAPM"
+        --slow-limit="$AC_SLOW"
+        --fast-limit="$AC_FAST"
+        --tctl-temp="$AC_TCTL")
+else
+  mode=battery
+  echo 0 >"$boost" 2>/dev/null || true
+  apply_epp "$BAT_EPP"
+  args=(--power-saving
+        --stapm-limit="$BAT_STAPM"
+        --slow-limit="$BAT_SLOW"
+        --fast-limit="$BAT_FAST"
+        --tctl-temp="$BAT_TCTL")
+fi
+
+ry_ok=skip
+if [ -x "$RYZENADJ" ]; then
+  ry_ok=fail
+  for _try in 1 2 3; do
+    if "$RYZENADJ" "${args[@]}" >/dev/null 2>&1; then
+      ry_ok=ok
+      break
+    fi
+    sleep 0.4
+  done
+fi
+
+epp_now=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo '?')
+boost_now=$(cat "$boost" 2>/dev/null || echo '?')
+logger -t cpu-ac-switch "mode=$mode AC=$online boost=$boost_now epp=$epp_now ryzenadj=$ry_ok"

@@ -1,0 +1,82 @@
+#!/bin/sh
+# Click Telegram dunst toast → raise main chat from tray (no forced resize war)
+exec 9>/tmp/dunst-tg-raise.lock
+flock -n 9 || exit 0
+
+raise() {
+	/home/ryuzaki/.local/bin/telegram >/dev/null 2>&1 &
+	sleep 0.15
+
+	main=
+	best=0
+	sw=$(xdotool getdisplaygeometry | awk '{print $1}')
+	sh=$(xdotool getdisplaygeometry | awk '{print $2}')
+
+	for id in $(xdotool search --class TelegramDesktop 2>/dev/null); do
+		eval "$(xdotool getwindowgeometry --shell "$id" 2>/dev/null)" || continue
+		[ "${WIDTH:-0}" -ge 400 ] && [ "${HEIGHT:-0}" -ge 300 ] || continue
+		# skip near-fullscreen overlays (media viewer etc.)
+		[ "$WIDTH" -ge $((sw - 40)) ] && [ "$HEIGHT" -ge $((sh - 40)) ] && continue
+		area=$((WIDTH * HEIGHT))
+		if [ "$area" -gt "$best" ]; then
+			best=$area
+			main=$id
+			mx=$X; my=$Y; mw=$WIDTH; mh=$HEIGHT
+		fi
+	done
+	[ -n "$main" ] || return 0
+
+	xdotool windowmap "$main" 2>/dev/null
+
+	# only recenter/resize if tiny or clearly off-screen — keep user's size otherwise
+	need_geom=0
+	mx=${mx:-0}; my=${my:-0}; mw=${mw:-0}; mh=${mh:-0}
+	if [ "$mw" -lt 400 ] || [ "$mh" -lt 300 ]; then need_geom=1; fi
+	if [ "$mx" -lt -50 ] || [ "$my" -lt -50 ]; then need_geom=1; fi
+	if [ $((mx + mw)) -gt $((sw + 50)) ] || [ $((my + mh)) -gt $((sh + 50)) ]; then need_geom=1; fi
+
+	if [ "$need_geom" -eq 1 ]; then
+		w=920; h=640
+		x=$(( (sw - w) / 2 )); y=$(( (sh - h) / 2 + 10 ))
+		xdotool windowsize "$main" "$w" "$h" 2>/dev/null
+		xdotool windowmove "$main" "$x" "$y" 2>/dev/null
+	fi
+
+	xdotool windowactivate --sync "$main" 2>/dev/null
+	xdotool windowraise "$main" 2>/dev/null
+}
+
+expect_app=0
+from_tg=0
+dbus-monitor --session \
+	"type='method_call',interface='org.freedesktop.Notifications',member='Notify'" \
+	"type='signal',interface='org.freedesktop.Notifications',member='ActionInvoked'" 2>/dev/null |
+while IFS= read -r line; do
+	case $line in
+	*member=Notify*)
+		expect_app=1
+		from_tg=0
+		;;
+	*member=ActionInvoked*)
+		if [ "$from_tg" -eq 1 ]; then
+			from_tg=0
+			(sleep 0.15; raise) &
+		fi
+		expect_app=0
+		;;
+	*)
+		if [ "$expect_app" -eq 1 ]; then
+			case $line in
+			*string\ \"Telegram*|*string\ \"org.telegram*|*string\ \"telegram*)
+				from_tg=1
+				expect_app=0
+				;;
+			*string\ \"*)
+				expect_app=0
+				from_tg=0
+				;;
+			esac
+		fi
+		;;
+	esac
+done

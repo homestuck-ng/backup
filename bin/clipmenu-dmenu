@@ -1,0 +1,55 @@
+#!/bin/sh
+# dmenu picker for clipd history (text + images)
+export DISPLAY="${DISPLAY:-:0}"
+DIR="${CLIPD_DIR:-/tmp/clipd}"
+
+pgrep -x clipd >/dev/null 2>&1 || clipd >/dev/null 2>&1 &
+
+[ -f "$DIR/index" ] || exit 0
+
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT
+
+while IFS= read -r base; do
+	[ -n "$base" ] || continue
+	f="$DIR/$base"
+	[ -e "$f" ] || continue
+	case $base in
+	i_*.png)
+		printf '[img] %s\t%s\n' "$(echo "${base#i_}" | cut -c1-12)…" "$base"
+		;;
+	t_*)
+		prev=$(tr '\n\t' '  ' <"$f" | sed 's/  */ /g' | cut -c1-100)
+		[ -n "$prev" ] || prev="(empty)"
+		printf '%s\t%s\n' "$prev" "$base"
+		;;
+	esac
+done <"$DIR/index" >"$list"
+
+[ -s "$list" ] || exit 0
+
+sel=$(cut -f1 "$list" | dmenu -i -l 12 \
+	-fn "JetBrains Mono:size=10" \
+	-nb "#1e1e1e" -nf "#bbbbbb" -sb "#3a3a3a" -sf "#eeeeee" \
+	-p "clip")
+[ -n "$sel" ] || exit 0
+
+base=$(awk -F '\t' -v s="$sel" '$1 == s { print $2; exit }' "$list")
+[ -n "$base" ] || exit 0
+f="$DIR/$base"
+[ -e "$f" ] || exit 0
+
+case $base in
+i_*.png)
+	xclip -selection clipboard -t image/png -i <"$f"
+	sleep 0.05
+	# GUI apps
+	xdotool key --clearmodifiers ctrl+v
+	;;
+t_*)
+	xclip -selection clipboard -i <"$f"
+	sleep 0.05
+	# terminals (st/bash): Shift+Insert; also try Ctrl+v for GUI
+	xdotool key --clearmodifiers shift+Insert
+	;;
+esac

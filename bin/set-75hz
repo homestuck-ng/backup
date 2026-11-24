@@ -1,0 +1,19 @@
+#!/bin/sh
+# Force 1920x1080@75 on eDP + TearFree (no scrolling tear)
+export DISPLAY="${DISPLAY:-:0}"
+OUT=$(xrandr | awk '/ connected primary/{print $1; exit}')
+[ -n "$OUT" ] || OUT=$(xrandr | awk '/ connected/{print $1; exit}')
+NAME="1920x1080_75.00"
+
+# xrandr --mode on AMD resets backlight to 100% — remember & restore
+BR=$(brightnessctl -m 2>/dev/null | awk -F, '{print $3}')
+
+if ! xrandr | grep -q "$NAME"; then
+  xrandr --newmode "$NAME" 187.03 1920 1968 2000 2187 1080 1083 1089 1140 +HSync -VSync 2>/dev/null || true
+  xrandr --addmode "$OUT" "$NAME" 2>/dev/null || true
+fi
+xrandr --output "$OUT" --mode "$NAME"
+# AMD TearFree — kills tearing without a compositor
+xrandr --output "$OUT" --set TearFree on 2>/dev/null || true
+
+[ -n "$BR" ] && brightnessctl -q s "$BR" 2>/dev/null || true

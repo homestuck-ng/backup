@@ -1,0 +1,5 @@
+#!/bin/sh
+# Soft-reload dwm (new binary) — requires .xinitrc: while dwm; do :; done
+# Does NOT kill X / session.
+export DISPLAY="${DISPLAY:-:0}"
+pkill -x dwm

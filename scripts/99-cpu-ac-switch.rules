@@ -1,0 +1,2 @@
+# Reapply the CPU profile when the charger is plugged or unplugged.
+ACTION=="change", SUBSYSTEM=="power_supply", ENV{POWER_SUPPLY_TYPE}=="Mains", TAG+="systemd", ENV{SYSTEMD_WANTS}+="cpu-ac-switch.service"
