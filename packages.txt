@@ -36,15 +36,14 @@ libnotify
 snixembed
 clipnotify
 
-# Аудио (PipeWire вместо PulseAudio — они в конфликте)
-# Перед установкой: pacman -Rdd pulseaudio pulseaudio-bluetooth
+# Аудио (PipeWire вместо PulseAudio/JACK — конфликты)
+# Перед установкой: pacman -Rdd pulseaudio pulseaudio-bluetooth jack2 jack
 pipewire
 pipewire-pulse
 pipewire-alsa
 pipewire-jack
 wireplumber
 pavucontrol
-
 # Сеть / BT / трей
 networkmanager
 network-manager-applet
