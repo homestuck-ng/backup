@@ -50,8 +50,14 @@ sudo systemctl enable --now NetworkManager
 Список полный и актуальный: **`packages.txt`**.
 
 ```bash
+# если уже стоит PulseAudio — сначала убрать (конфликт с pipewire-pulse):
+sudo pacman -Rdd --noconfirm pulseaudio pulseaudio-bluetooth 2>/dev/null || true
+
 sudo pacman -Syu --needed - < packages.txt
+# или одной командой: ./install.sh  (сам снимает pulseaudio)
 ```
+
+Если pacman ругается `pipewire-pulse … and pulseaudio … are in conflict` — это нормально для Arch: оставляем **PipeWire**, PulseAudio удаляем (`-Rdd`), затем повторяем установку из `packages.txt`.
 
 Критичное, без чего «не как тут»:
 

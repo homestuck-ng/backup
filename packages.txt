@@ -36,9 +36,12 @@ libnotify
 snixembed
 clipnotify
 
-# Аудио
+# Аудио (PipeWire вместо PulseAudio — они в конфликте)
+# Перед установкой: pacman -Rdd pulseaudio pulseaudio-bluetooth
 pipewire
 pipewire-pulse
+pipewire-alsa
+pipewire-jack
 wireplumber
 pavucontrol
 

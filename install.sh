@@ -7,6 +7,14 @@ BIN="${HOME}/.local/bin"
 mkdir -p "$BIN" "${HOME}/.config/dunst"
 
 echo "==> 1/7 pacman (packages.txt)"
+# pipewire-pulse conflicts with pulseaudio — drop PulseAudio stack first if present
+if pacman -Qq pulseaudio >/dev/null 2>&1; then
+  echo "    removing pulseaudio (conflicts with pipewire-pulse)…"
+  # -Rdd: drop even if something still depends on it; PipeWire replaces the stack
+  sudo pacman -Rdd --noconfirm \
+    pulseaudio pulseaudio-bluetooth pulseaudio-equalizer pulseaudio-jack \
+    pulseaudio-lirc pulseaudio-rtp pulseaudio-zeroconf 2>/dev/null || true
+fi
 # strip comments/blank lines for pacman stdin
 grep -vE '^\s*(#|$)' "$ROOT/packages.txt" | sudo pacman -Syu --needed --noconfirm -
 
